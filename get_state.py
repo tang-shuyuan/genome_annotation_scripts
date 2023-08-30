@@ -6,7 +6,7 @@ import argparse
 import pysam
 import time
 import datetime
-parser = argparse.ArgumentParser(description="this is a python script used to merge bam files")
+parser = argparse.ArgumentParser(description="this is a python script used to assese bam files")
 parser.add_argument('input_folder_or_files',nargs='+', help='input a folder containing BAM files or bam files')
 parser.add_argument('gff_file', help='Input GFF file')
 parser.add_argument('-c','--coverage' , type=float, default=70, help='default=70 The coverage rate threshold for a gene to be considered as expressed(Number size must be between 0 and 100')
