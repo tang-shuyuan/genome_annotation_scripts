@@ -112,13 +112,13 @@ def split_gff_to_bed(gff_file,chrom_lengths):
 
 # # ####get nongene_region
     non_gene_regions = []
-    # merged_regions.sort(key=lambda x: (x[0], x[1]))
+    merged_regions.sort(key=lambda x: (x[0], x[1]))
     for chrom,lenght in chrom_lengths.items():
         start=0
         for chr, gene_start, gene_end in merged_regions:
             if chr == chrom and start > gene_start:
                 print("error number")
-            while chr==chrom and start< gene_start:
+            while chr==chrom and start<gene_start:
                 if gene_start-start>interval:
                         non_gene_regions.append((chrom, start, start+interval))
                         start = start+interval
@@ -126,13 +126,27 @@ def split_gff_to_bed(gff_file,chrom_lengths):
                 elif gene_start-start<=interval:
                     non_gene_regions.append((chrom, start, gene_start))
                     start=gene_end
-
         non_gene_regions.append((chrom,start,lenght))
-    all_regions=merged_regions+non_gene_regions
+    all_regions = merged_regions + non_gene_regions
+    with open(os.path.join(output_dir, "region.txt"),"w") as f:
+        merged_regions = [(region + ("gene_region",)) for region in merged_regions]
+        non_gene_regions = [(region + ("non_gene_region",)) for region in non_gene_regions]
+        list_region = sorted(merged_regions + non_gene_regions, key=lambda x: (x[0], x[1]))
+        f.writelines([f"{content}\n" for content in list_region])
     return all_regions
 
 gene_region_list=split_gff_to_bed(input_gff_file,chr_len)
+###检测染色体名称是否对应
+store_list=[]
+for tuple in gene_region_list:
+    store_list.append(tuple[0])
+    unique_list = list(set(store_list))
+for chr_name in chr_len.keys():
+    if chr_name not in store_list:
+        print(f"warning, {chr_name} cannot be found in the gff file,this chromosome will not be split region")
 print("split region succssfully")
+
+
 # ###calculate the  depth of each region
 def calculate_coverage(bam_file):
     bam = pysam.AlignmentFile(bam_file, "rb")
@@ -147,7 +161,7 @@ def calculate_coverage(bam_file):
 
 def process_bam_file(bam):
     coverage = calculate_coverage(bam)
-    print("collect "+ bam + "depth ifomation  finished")
+    print("collect "+ bam + " depth ifomation  finished")
     return bam, coverage
 def store_bam_region_coverage_parallel(bam_files):
     now_time = time.time()
