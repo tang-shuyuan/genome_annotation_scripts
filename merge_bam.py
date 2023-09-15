@@ -133,9 +133,9 @@ def split_gff_to_bed(gff_file,chrom_lengths):
         non_gene_regions = [(region + ("non_gene_region",)) for region in non_gene_regions]
         list_region = sorted(merged_regions + non_gene_regions, key=lambda x: (x[0], x[1]))
         f.writelines([f"{content}\n" for content in list_region])
-    return all_regions
+    return merged_regions,all_regions
 
-gene_region_list=split_gff_to_bed(input_gff_file,chr_len)
+gene_region_list,all_region_list=split_gff_to_bed(input_gff_file,chr_len)
 ###检测染色体名称是否对应
 store_list=[]
 for tuple in gene_region_list:
@@ -151,7 +151,7 @@ print("split region succssfully")
 def calculate_coverage(bam_file):
     bam = pysam.AlignmentFile(bam_file, "rb")
     coverage_dict = {}
-    for region in gene_region_list:
+    for region in all_region_list:
         chrom, start, end = region
         pileup = bam.fetch(chrom, start, end)
         depth = sum([1 for _ in pileup])
@@ -201,7 +201,7 @@ def merge_regions_to_bam(bam_files, region_list,coverage_dicts ):
         region_merged_bam.close()
     merged_bam.close()
     print("completed mergeing bam files")
-merge_regions_to_bam(bam_file_paths,gene_region_list,big_dict)
+merge_regions_to_bam(bam_file_paths,all_region_list,big_dict)
 
 ###进行最后排序和建索引
 print("Start sorting and indexing the merged bam files")
