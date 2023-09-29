@@ -122,7 +122,6 @@ def split_gff_to_bed(gff_file,chrom_lengths):
                 if gene_start-start>interval:
                         non_gene_regions.append((chrom, start, start+interval))
                         start = start+interval
-
                 elif gene_start-start<=interval:
                     non_gene_regions.append((chrom, start, gene_start))
                     start=gene_end
@@ -135,14 +134,14 @@ def split_gff_to_bed(gff_file,chrom_lengths):
         f.writelines([f"{content}\n" for content in list_region])
     return merged_regions,all_regions
 
-gene_region_list,all_region_list=split_gff_to_bed(input_gff_file,chr_len)
-###检测染色体名称是否对应
-store_list=[]
+gene_region_list,unsort_all_region_list=split_gff_to_bed(input_gff_file,chr_len)
+all_region_list=sorted(unsort_all_region_list,key=lambda x: (x[0], x[1]))
+###Check whether the chromosome names correspond
+store_set=set()
 for tuple in gene_region_list:
-    store_list.append(tuple[0])
-    unique_list = list(set(store_list))
+    store_set.add(tuple[0])
 for chr_name in chr_len.keys():
-    if chr_name not in store_list:
+    if chr_name not in store_set:
         print(f"warning, {chr_name} cannot be found in the gff file,this chromosome will not be split region")
 print("split region succssfully")
 
@@ -179,11 +178,10 @@ def store_bam_region_coverage_parallel(bam_files):
     return coverage_dicts
 big_dict=store_bam_region_coverage_parallel(bam_file_paths)
 
-def merge_regions_to_bam(bam_files, region_list,coverage_dicts ):
+def merge_regions_to_bam(bam_files,coverage_dicts,output_region):
     create_header_bam=pysam.AlignmentFile(bam_files[0],"rb")
     merged_bam = pysam.AlignmentFile(os.path.join(output_dir, "merged.bam"), "wb", header=create_header_bam.header)
-    store_dict={}
-    for region in region_list:
+    def comprise_max_bam(region):
         max_coverage = 0
         max_bam = None
         for bam in coverage_dicts:
@@ -191,8 +189,28 @@ def merge_regions_to_bam(bam_files, region_list,coverage_dicts ):
             if coverage>=max_coverage:
                 max_coverage=coverage
                 max_bam = bam
-        store_dict[region]=max_bam
-    for bam in coverage_dicts:
+        return max_bam
+    region_number=len(all_region_list)
+    store_dict = {}
+    i = 0
+    while i < region_number:
+        initial_max_bam=comprise_max_bam(all_region_list[i])
+        b=i+1
+        continuous_region=all_region_list[i]
+        while comprise_max_bam(all_region_list[b])==initial_max_bam and all_region_list[b][0]==all_region_list[i][0]:
+            continuous_region=(all_region_list[i][0],all_region_list[i][1],all_region_list[b][2])
+            b+=1
+            if b=region_number:
+                break
+        store_dict[continuous_region]=initial_max_bam
+        i=b
+        if i == region_number-1:
+            store_dict[all_region_list[-1]]=comprise_max_bam(all_region_list[-1])
+            i=i+1
+    with open(output_region,"w") as f:
+        for key,values in store_dict.items():
+            print((key,values),file=f)
+    for bam in bam_files:
         region_merged_bam = pysam.AlignmentFile(bam, "rb")
         for region,bamname in store_dict.items():
             if bam == bamname:
@@ -201,7 +219,7 @@ def merge_regions_to_bam(bam_files, region_list,coverage_dicts ):
         region_merged_bam.close()
     merged_bam.close()
     print("completed mergeing bam files")
-merge_regions_to_bam(bam_file_paths,all_region_list,big_dict)
+merge_regions_to_bam(bam_file_paths,big_dict,os.path.join(output_dir,"merged_region.txt"))
 
 ###进行最后排序和建索引
 print("Start sorting and indexing the merged bam files")
