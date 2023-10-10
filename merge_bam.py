@@ -200,7 +200,7 @@ def merge_regions_to_bam(bam_files,coverage_dicts,output_region):
         while comprise_max_bam(all_region_list[b])==initial_max_bam and all_region_list[b][0]==all_region_list[i][0]:
             continuous_region=(all_region_list[i][0],all_region_list[i][1],all_region_list[b][2])
             b+=1
-            if b=region_number:
+            if b==region_number:
                 break
         store_dict[continuous_region]=initial_max_bam
         i=b
