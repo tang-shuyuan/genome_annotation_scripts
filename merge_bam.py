@@ -12,7 +12,8 @@ parser.add_argument('gff_file', help='Input GFF file')
 parser.add_argument('-r','--interval' , type=int, default=5000, help='default=5000 provide a number as the distance to split non gene region ')
 parser.add_argument('-o', '--output_dir', default='output', help='Output directory')
 parser.add_argument('-s','--sort_and_index',action='store_true',help='Whether to sort and index Bam files')
-parser.add_argument('-t','--cpu' , type=int, default=1, help='default=1 The number of CPUs used during code execution')
+parser.add_argument('-t','--cpu' , type=int, default=4, help='default=4 The number of CPUs used during code execution')
+parser.add_argument('-m','--max_intron_length',type=int,default=100000,help='default=100kb,Filter reads containing abnormal intron length')
 args = parser.parse_args()
 bam_file_paths=[]
 for item in args.input_folder_or_files:
@@ -39,6 +40,7 @@ interval=args.interval
 process_num=args.cpu
 output_dir = args.output_dir
 os.makedirs(output_dir, exist_ok=True)
+max_intron_length=args.max_intron_length   #max intron length
 
 
 start_time=time.time()
@@ -215,7 +217,12 @@ def merge_regions_to_bam(bam_files,coverage_dicts,output_region):
         for region,bamname in store_dict.items():
             if bam == bamname:
                 for read in region_merged_bam.fetch(*region):
-                    merged_bam.write(read)
+                    ###limit intron length
+                    contain_big_intron = False
+                    if read.cigartuples is not None:
+                        contain_big_intron = any(op == 3 and length >= max_intron_length for op, length in read.cigartuples)
+                    if not contain_big_intron:
+                        merged_bam.write(read)
         region_merged_bam.close()
     merged_bam.close()
     print("completed mergeing bam files")
