@@ -91,10 +91,8 @@ def split_gff_to_bed(gff_file,chrom_lengths):
     gene_regions = []
     with open(gff_file, "r") as file:
         for line in file:
-            if not line.startswith("#"):
+            if not line.startswith("#") and line.strip():
                 columns = line.strip().split("\t")
-                if not columns:
-                    continue
                 feature_type = columns[2].lower()
                 if feature_type in ["gene", "mrna", "transcript"]:
                     chromosome = columns[0]
